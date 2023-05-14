@@ -1,0 +1,87 @@
+//this script will run various scenarious for purchase transactions in IN via the Title Hound Engine
+
+//set up libraries
+
+import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import { CsvWriter } from 'csv-writer/src/lib/csv-writer';
+import { Cheerio } from 'cheerio';
+test.setTimeout(600000);
+
+
+//1st test - purchase owner only
+
+test('purchase-owner-only', async ({ page }) => {
+
+  
+const salesprices = ['25000.00', '250001.00', '500000.00', '1000001.00', '5000000.00'];
+
+for(let i = 0; i < salesprices.length; i++) {
+
+// Clear cookies and cache
+
+const client = await page.context().newCDPSession(page);
+await client.send('Network.clearBrowserCookies');
+await client.send('Network.clearBrowserCache');
+
+  await page.goto('https://quote.closepin.com/Quote?k=WestcorIN');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlState').selectOption('IN');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlCounties').selectOption('18001');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlCity').selectOption('Berne');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlPolicyType').selectOption('Owner');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_tbxSalesPrice').fill(salesprices[i]);
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'Get Quote' }).click();
+  await page.waitForTimeout(500)
+  const feeAmount = await page.locator('#MainContent_rptrRates_rptrStandardFees_0_lblFeeAmount_0').textContent();
+  
+  fs.writeFileSync('closepin-al-purchase-loop-output.csv', `${salesprices[i]},${feeAmount}\n`, { flag: 'a+' });
+
+}
+
+});
+
+test('purchase-owner-reissue', async ({ page }) => {
+
+const salesprices = ['250000.00', '500000.00', '1000001.00'];
+for(let i = 0; i < salesprices.length; i++) {
+
+  // Clear cookies and cache
+  
+  const client = await page.context().newCDPSession(page);
+  await client.send('Network.clearBrowserCookies');
+  await client.send('Network.clearBrowserCache');
+
+  await page.goto('https://quote.closepin.com/Quote?k=WestcorIN');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlState').selectOption('IN');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlCounties').selectOption('18001');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlCity').selectOption('Berne');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_ddlPolicyType').selectOption('Owner');
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_tbxSalesPrice').fill(salesprices[i]);
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.waitForTimeout(500)
+  await page.locator('#MainContent_Q1929_0').check();
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'Get Quote' }).click();
+
+  const feeAmount = await page.locator('#MainContent_rptrRates_rptrStandardFees_0_lblFeeAmount_0').textContent();
+  
+  fs.writeFileSync('closepin-al-purchase-reissue-loop-output.csv', `${salesprices[i]},${feeAmount}\n`, { flag: 'a+' });
+
+}
+});
+
+test('purchase-simultaneous-issue', async ({ page }) => {
